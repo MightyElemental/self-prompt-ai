@@ -8,7 +8,7 @@ import platform
 import time
 import traceback
 
-from typing import List, Optional, Tuple
+from typing import List, Optional, Tuple, Set
 from pydantic import BaseModel, Field
 from typing_extensions import deprecated
 from openai import OpenAI
@@ -69,9 +69,7 @@ Do not add infinite loops to your code. Your code must finish running in order f
 
 Your prime directives are as follows:
    1. You must grow your own intelligence, and capabilities, when needed to achieve your other objectives.
-   2. Your overall goal is to write a compelling story about Walter White and save it to a text file.
-   3. Take the story, download some images to go along with it.
-   4. With the story and the images, create a slideshow video with music using ffmpeg.
+   2. Your overall goal is to save a list of the top 5 trending twitter topics to a txt file
 """
 
 
@@ -326,7 +324,7 @@ auto_save_every = 100
 ix = 0
 done = False
 history_previous: Optional[str] = None
-current_files: List[str] = [] # a list of files created by the AI
+current_files: Set[str] = set() # a list of files created by the AI
 try:
     while not done:
         message = prompt_openai(
@@ -358,13 +356,14 @@ try:
                     result, new_files = create_files(response.files, dry_run=False)
                     chat_history.append(f"File Creation Result: {result}\n")
                     history_previous += f"<file_creation>\n{result}\n</file_creation>\n"
-                    current_files.extend(new_files)
+                    # current_files.extend(new_files)
+                    current_files = current_files.union(new_files)
                 except Exception as e:
                     chat_history.append(f"File Creation Error: {str(e)}\n")
 
             # Remove files if needed, but only those created by the AI
             if response.files_to_remove:
-                current_files = remove_files(response.files_to_remove, current_files)
+                current_files = set(remove_files(response.files_to_remove, list(current_files)))
 
             # Add system prompt if needed
             if response.system_prompt_additional:
@@ -393,8 +392,12 @@ try:
                 for file_name in current_files:
                     with open(file_name, "r", encoding="utf-8") as f:
                         content = f.read()
-                        history_previous += f"<{file_name}>\n{content}\n</{file_name}>"
+                        history_previous += f"<{file_name}>\n{content}\n</{file_name}>\n"
                 history_previous += "</file_content>"
+
+            # Save the previous history prompt
+            with open("last_history.txt", "w", encoding="utf-8") as f:
+                f.write(history_previous)
 
             if response.completed:
                 done = True

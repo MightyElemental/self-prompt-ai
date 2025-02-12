@@ -175,3 +175,6 @@ cython_debug/
 
 # Key files
 *.key
+
+# Other files
+last_history.txt
